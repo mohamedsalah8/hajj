@@ -1,0 +1,71 @@
+stages:
+  - testing
+  - staging
+  - deploy_to_dev
+  - deploy_to_staging
+variables:
+  DEPLOY_DEV_PATH: "/var/www/hajj-gate-survey-dashboard"
+  DEPLOY_STAGING_PATH: "/var/www/hajj-gate-survey-dashboard"
+  DEV_IP: "10.10.10.50"
+  STAGING_IP: "10.10.10.51"
+build_dev:
+  only:
+    - dev
+  stage: testing
+  tags:
+    - runner-front
+    - runner-shell
+  before_script:
+    - rm -rf build
+  script:
+    - cp .env.dev .env
+    - npm install
+    - CI=false npm run build
+  artifacts:
+    name: "build"
+    paths:
+      - build
+deploy_dev:
+  stage: deploy_to_dev
+  only:
+    - dev
+  tags:
+    - runner-front
+    - runner-shell
+  needs:
+    - build_dev
+  script:
+    - ssh mohamed@$DEV_IP "sudo rm -rf $DEPLOY_DEV_PATH/build; sudo  mkdir $DEPLOY_DEV_PATH/build; sudo chown -R mohamed:mohamed $DEPLOY_DEV_PATH/build"
+    - scp -r ./build/* mohamed@$DEV_IP:$DEPLOY_DEV_PATH/build
+    - ssh mohamed@$DEV_IP "sudo cp $DEPLOY_DEV_PATH/ht $DEPLOY_DEV_PATH/build/.htaccess"
+
+build_staging:
+  only:
+    - staging
+  stage: staging
+  tags:
+    - runner-front
+    - runner-shell
+  before_script:
+    - rm -rf build
+  script:
+    - cp .env.staging .env
+    - npm install
+    - CI=false npm run build
+  artifacts:
+    name: "build"
+    paths:
+      - build
+deploy_staging:
+  stage: deploy_to_staging
+  only:
+    - staging
+  tags:
+    - runner-front
+    - runner-shell
+  needs:
+    - build_staging
+  script:
+    - ssh mohamed@$STAGING_IP "sudo rm -rf $DEPLOY_STAGING_PATH/build; sudo  mkdir $DEPLOY_STAGING_PATH/build; sudo chown -R mohamed:mohamed $DEPLOY_STAGING_PATH/build"
+    - scp -r ./build/* mohamed@$STAGING_IP:$DEPLOY_STAGING_PATH/build
+    - ssh mohamed@$STAGING_IP "sudo cp $DEPLOY_STAGING_PATH/ht $DEPLOY_STAGING_PATH/build/.htaccess"
